@@ -7,6 +7,23 @@ import math
 
 app = FastAPI(title="Netflix-Like Recommender API")
 
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "https://neoflix-recommender.vercel.app",
+        "https://neoflix-recommender-pqgu679fn-louay10s-projects-64eb9dc1.vercel.app",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+
 # CORS (frontend)
 app.add_middleware(
     CORSMiddleware,
