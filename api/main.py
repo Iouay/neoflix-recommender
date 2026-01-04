@@ -5,37 +5,31 @@ from sklearn.metrics.pairwise import cosine_similarity
 from pathlib import Path
 import math
 
-app = FastAPI(title="Netflix-Like Recommender API")
+app = FastAPI(title="Neoflix Recommender API")
 
-from fastapi.middleware.cors import CORSMiddleware
-
+# ------------------------
+# CORS (Vercel + Local)
+# ------------------------
 app.add_middleware(
     CORSMiddleware,
+    # domaines fixes (prod + local)
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "https://neoflix-recommender.vercel.app",
-        "https://neoflix-recommender-pqgu679fn-louay10s-projects-64eb9dc1.vercel.app",
     ],
+    # autorise tous les previews Vercel: https://xxxxx.vercel.app
+    allow_origin_regex=r"^https://.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-
-# CORS (frontend)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# ---- Load data ----
+# ------------------------
+# Load data (robuste Railway)
+# ------------------------
 BASE_DIR = Path(__file__).resolve().parent      # .../api
-DATA_DIR = BASE_DIR.parent / "data"             # .../data
+DATA_DIR = BASE_DIR.parent / "data"            # .../data
 
 ratings = pd.read_csv(DATA_DIR / "ratings.csv")
 movies = pd.read_csv(DATA_DIR / "movies.csv")
@@ -50,15 +44,18 @@ M_filled = M.fillna(0)
 movie_sim = cosine_similarity(M_filled)
 movie_sim_df = pd.DataFrame(movie_sim, index=M.index, columns=M.index)
 
+
 def clip_score(x: float) -> float:
-    # similarity score in [0,1], but keep sane bounds
+    # similarity score in [0,1], keep sane bounds
     if x is None or (isinstance(x, float) and math.isnan(x)):
         return 0.0
     return max(0.0, min(1.0, float(x)))
 
+
 @app.get("/")
 def root():
-    return {"status": "ok", "message": "Netflix-Like Recommender API is running."}
+    return {"status": "ok", "message": "Neoflix Recommender API is running."}
+
 
 @app.get("/movies/search")
 def search_movies(
@@ -66,7 +63,6 @@ def search_movies(
     limit: int = Query(10, ge=1, le=25),
 ):
     q_low = q.lower().strip()
-    # simple search on title
     matches = movies[movies["title"].str.lower().str.contains(q_low, na=False)].head(limit)
     return {
         "query": q,
@@ -75,6 +71,7 @@ def search_movies(
             for _, row in matches.iterrows()
         ],
     }
+
 
 @app.get("/similar")
 def similar_movies(
@@ -98,6 +95,9 @@ def similar_movies(
 
     return {
         "type": "item_to_item_cosine",
-        "seed_movie": {"movie_id": int(movie_id), "title": movie_titles.get(int(movie_id), "Unknown")},
+        "seed_movie": {
+            "movie_id": int(movie_id),
+            "title": movie_titles.get(int(movie_id), "Unknown"),
+        },
         "recommendations": recs,
     }
